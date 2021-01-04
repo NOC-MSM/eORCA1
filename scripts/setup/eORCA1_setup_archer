@@ -1,27 +1,29 @@
 #!/bin/bash
-# Lightweight script to set up SE-ORCA025 on ARCHER
+# Lightweight script to set up eORCA1
  
 display_usage() { 
    echo
-   echo "  Auto-Config: SE-ORCA025 on ARCHER"
+   echo "  Auto-Config: eORCA1"
    echo "  ***************************************"
    echo
-   echo "  usage: ${0##*/} -w path_to_install_nemo -x path_to_intall_xios -s path_to_repo"
+   echo "  usage: ${0##*/} -w path_to_install_nemo -x path_to_intall_xios -s path_to_repo -m machine -v version"
    echo
    echo "  flags:  -w full path to where nemo will be installed"
    echo "          -x full path to where xios will be installed"
-   echo "          -s full path to where SE-NEMO repository resides"
+   echo "          -s full path to where eORCA1 repository resides"
+   echo "          -m machine on which to compile code"
+   echo "          -v which version of NEMO to check out"
    echo
    exit 1
 	} 
 # if less than three arguments supplied, display usage 
-	if [  $# -le 5 ] 
+	if [  $# -le 9 ] 
 	then 
 		display_usage
 		exit 1
 	fi 
 # if less than two arguments supplied, display usage 
-	if [  $# -ge 7 ] 
+	if [  $# -ge 11 ] 
 	then 
 		display_usage
 		exit 1
@@ -33,13 +35,15 @@ display_usage() {
 		exit 0
 	fi 
 
-while getopts w:x:s: option
+while getopts w:x:s:m: option
   do
   case "${option}"
   in
   w) export WORK_DIR=${OPTARG};;
   x) export XIOS_DIR=${OPTARG};;
   s) export REPO_DIR=${OPTARG};;
+  m) export HPC_TARG=${OPTARG};;
+  v) export NEMO_VER=${OPTARG};;
   esac
 done
 
@@ -66,26 +70,60 @@ cd $WORK_DIR
 
 echo "Making sure that the correct modules are loaded"
 
-module swap PrgEnv-cray PrgEnv-intel
-module load cray-hdf5-parallel
-module load cray-netcdf-hdf5parallel
+case "${HPC_TARG}"
+  in
+  archer)  module swap PrgEnv-cray PrgEnv-intel
+           module load cray-hdf5-parallel
+           module load cray-netcdf-hdf5parallel
+           ;;
+  *)       echo "Machine not recognised"
+           echo "Machines available: archer"
+           exit 1
+esac
+
+case "${NEMO_VER}"
+  in
+  4.0.2)   echo "NEMO Verion 4.0.2 will be checked out"
+           ;;
+  4.0.3)   echo "NEMO Verion 4.0.3 will be checked out"
+           ;;
+  4.0.4)   echo "NEMO Verion 4.0.4 will be checked out"
+           ;;
+  4.0.5)   echo "NEMO Verion 4.0.5 will be checked out"
+           ;;
+  trunk)   echo "NEMO trunk will be checked out"
+           ;;
+  *)       echo "NEMO Version not recognised"
+           echo "Versions available: 4.0.2, 4.0.3, 4.0.4, 4.0.5 and trunk"
+           exit 1
+esac
 
 # Checkout the NEMO code from the SVN Paris repository 
 echo "Checking out NEMO repository"
-svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r4.0.2 --depth empty nemo
-svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r4.0.2/src --depth infinity nemo/src
+case "${NEMO_VER}"
+  in
+  trunk)   svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk --depth empty nemo
+           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk/src --depth infinity nemo/src
+           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk/cfgs/SHARED nemo/cfgs/SHARED
+           svn export http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk/cfgs/ref_cfgs.txt nemo/cfgs/ref_cfgs.txt
+           ;;
+  *)       svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/$NEMO_VER --depth empty nemo
+           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/$NEMO_VER/src --depth infinity nemo/src
+           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/$NEMO_VER/cfgs/SHARED nemo/cfgs/SHARED
+           svn export http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/$NEMO_VER/cfgs/ref_cfgs.txt nemo/cfgs/ref_cfgs.txt
+           ;;     
+esac
+
 svn co http://forge.ipsl.jussieu.fr/nemo/svn/utils/build/mk nemo/mk
-svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r4.0.2/cfgs/SHARED nemo/cfgs/SHARED
-svn export http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r4.0.2/cfgs/ref_cfgs.txt nemo/cfgs/ref_cfgs.txt
 svn co http://forge.ipsl.jussieu.fr/nemo/svn/vendors/FCM nemo/ext/FCM
 svn co http://forge.ipsl.jussieu.fr/nemo/svn/vendors/IOIPSL nemo/ext/IOIPSL
 svn export http://forge.ipsl.jussieu.fr/nemo/svn/utils/build/makenemo nemo/makenemo
 mkdir nemo/arch
 
 # Setup the directory structure for the ENSEMBLE
-mkdir $WORK_DIR/nemo/cfgs/se-orca025
-# Define the location of where the AMM7 forcing files are to be downloaded 
-export DOWNLOAD_DIR="$WORK_DIR/nemo/cfgs/se-orca025/EXP00/"
+mkdir $WORK_DIR/nemo/cfgs/eORCA1
+# Define the location of where the eORCA1 forcing files are to be downloaded 
+export DOWNLOAD_DIR="$WORK_DIR/nemo/cfgs/eORCA1/EXP00/"
 
 echo $XIOS_DIR
 # Choose an appropriate directory for your XIOS installation
@@ -110,12 +148,12 @@ cp $REPO_DIR/arch/nemo/* ./arch
 sed "s?XXX_XIOS_DIR_XXX?$XIOS_DIR?" ./arch/arch-archer.fcm > tmp_arch
 mv tmp_arch ./arch/arch-archer.fcm
 
-echo 'se-orca025 OCE ICE' >> $WORK_DIR/nemo/cfgs/work_cfgs.txt
+echo 'eORCA1 OCE ICE' >> $WORK_DIR/nemo/cfgs/work_cfgs.txt
 
-mkdir cfgs/se-orca025/EXP00
+mkdir cfgs/eORCA1/EXP00
 echo "Gathering forcing data"
 
-export CONFIG_DIR=$WORK_DIR/nemo/cfgs/se-orca025
+export CONFIG_DIR=$WORK_DIR/nemo/cfgs/eORCA1
 
 # Set up EXP00 for quick testing of the unforced case
 
@@ -127,10 +165,12 @@ ln -s ../../SHARED/field_def_nemo-oce.xml field_def_nemo-oce.xml
 ln -s ../../SHARED/field_def_nemo-ice.xml field_def_nemo-ice.xml
 ln -s ../../SHARED/domain_def_nemo.xml domain_def_nemo.xml
 ln -s ../../SHARED/axis_def_nemo.xml axis_def_nemo.xml
+ln -s ../INPUTS INPUTS
 
-wget http://gws-access.ceda.ac.uk/public/jmmp_collab/se-orca025/inputs.tar.gz
-tar xvfz inputs.tar.gz
-rm inputs.tar.gz
+cd ../
+mkdir INPUTS
+
+wget -r -nd -np -e robots=off -A '*.nc' http://gws-access.jasmin.ac.uk/public/jmmp_collab/eORCA1/ -P $CONFIG_DIR/INPUTS/
 
 mkdir meta_out
 mkdir RESTARTS
@@ -141,18 +181,24 @@ ln -s $XIOS_DIR/bin/xios_server.exe $CONFIG_DIR/EXP00/xios_server.exe
 
 cp $REPO_DIR/EXP00/* $CONFIG_DIR/EXP00/
 cp -r $REPO_DIR/MY_SRC $CONFIG_DIR
-cp $REPO_DIR/cpp_se-orca025.fcm $CONFIG_DIR/
+case "${NEMO_VER}"
+  in
+  trunk)  cp $REPO_DIR/cpp_eORCA1_trunk.fcm $CONFIG_DIR/cpp_eORCA1.fcm
+          ;;
+  *)      cp $REPO_DIR/cpp_eORCA1_r4.fcm $CONFIG_DIR/cpp_eORCA1.fcm
+          ;;
+esac
 
 cd $WORK_DIR/nemo
 
-echo "Compiling nemo SE-ORCA025 Config"
-./makenemo -m archer -r se-orca025 -j 8
+echo "Compiling nemo eORCA1 Config"
+./makenemo -m archer -r eORCA1 -j 8
 
 echo
-echo "  Auto-Config: SE-ORCA025"
+echo "  Auto-Config: eORCA1"
 echo "  *****************************"
 echo
-echo "  To run the SE-ORCA025 Configuration:"
+echo "  To run the eORCA1 Configuration:"
 echo
 echo "  - update the runscript.pbs accordingly "
 echo "      (project code, nodes, modules, etc)"
