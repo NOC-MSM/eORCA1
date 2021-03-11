@@ -1,29 +1,27 @@
 #!/bin/bash
-# Lightweight script to set up eORCA1
+# Lightweight script to set up eORCA1 on ARCHER2
  
 display_usage() { 
    echo
-   echo "  Auto-Config: eORCA1"
+   echo "  Auto-Config: eORCA1 on ARCHER2"
    echo "  ***************************************"
    echo
-   echo "  usage: ${0##*/} -w path_to_install_nemo -x path_to_intall_xios -s path_to_repo -m machine -v version"
+   echo "  usage: ${0##*/} -w path_to_install_nemo -x path_to_intall_xios -s path_to_repo"
    echo
    echo "  flags:  -w full path to where nemo will be installed"
    echo "          -x full path to where xios will be installed"
    echo "          -s full path to where eORCA1 repository resides"
-   echo "          -m machine on which to compile code"
-   echo "          -v which version of NEMO to check out"
    echo
    exit 1
 	} 
 # if less than three arguments supplied, display usage 
-	if [  $# -le 9 ] 
+	if [  $# -le 5 ] 
 	then 
 		display_usage
 		exit 1
 	fi 
 # if less than two arguments supplied, display usage 
-	if [  $# -ge 11 ] 
+	if [  $# -ge 7 ] 
 	then 
 		display_usage
 		exit 1
@@ -35,15 +33,13 @@ display_usage() {
 		exit 0
 	fi 
 
-while getopts w:x:s:m:v: option
+while getopts w:x:s: option
   do
   case "${option}"
   in
   w) export WORK_DIR=${OPTARG};;
   x) export XIOS_DIR=${OPTARG};;
   s) export REPO_DIR=${OPTARG};;
-  m) export HPC_TARG=${OPTARG};;
-  v) export NEMO_VER=${OPTARG};;
   esac
 done
 
@@ -70,52 +66,22 @@ cd $WORK_DIR
 
 echo "Making sure that the correct modules are loaded"
 
-case "${HPC_TARG}"
-  in
-  archer)  module swap PrgEnv-cray PrgEnv-intel
-           module load cray-hdf5-parallel
-           module load cray-netcdf-hdf5parallel
-           ;;
-  *)       echo "Machine not recognised"
-           echo "Machines available: archer"
-           exit 1
-esac
+module -s restore $REPO_DIR/scripts/env/ucx_env
 
-case "${NEMO_VER}"
-  in
-  4.0.2)   echo "NEMO Verion 4.0.2 will be checked out"
-           ;;
-  4.0.3)   echo "NEMO Verion 4.0.3 will be checked out"
-           ;;
-  4.0.4)   echo "NEMO Verion 4.0.4 will be checked out"
-           ;;
-  4.0.5)   echo "NEMO Verion 4.0.5 will be checked out"
-           ;;
-  trunk)   echo "NEMO trunk will be checked out"
-           ;;
-  *)       echo "NEMO Version not recognised"
-           echo "Versions available: 4.0.2, 4.0.3, 4.0.4, 4.0.5 and trunk"
-           exit 1
-esac
+# Currently running 4.0.4
+NEMO_VER=4.0.4
 
 # Checkout the NEMO code from the SVN Paris repository 
 echo "Checking out NEMO repository"
-case "${NEMO_VER}"
-  in
-  trunk)   svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk --depth empty nemo
-           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk/src --depth infinity nemo/src
-           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk/cfgs/SHARED nemo/cfgs/SHARED
-           svn export http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/trunk/cfgs/ref_cfgs.txt nemo/cfgs/ref_cfgs.txt
-           ;;
-  *)       svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER --depth empty nemo
-           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER/src --depth infinity nemo/src
-           svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER/cfgs/SHARED nemo/cfgs/SHARED
-           svn export http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER/cfgs/ref_cfgs.txt nemo/cfgs/ref_cfgs.txt
-           ;;     
-esac
+
+svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER --depth empty nemo
+svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER/src --depth infinity nemo/src
+svn co http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER/cfgs/SHARED nemo/cfgs/SHARED
+svn export http://forge.ipsl.jussieu.fr/nemo/svn/NEMO/releases/r4.0/r$NEMO_VER/cfgs/ref_cfgs.txt nemo/cfgs/ref_cfgs.txt
 
 cd nemo
 
+# Now check EXTERNALS revision number before checking out the rest
 for ext_name in mk FCM IOIPSL   
   do   
   ext=`svn propget svn:externals | grep $ext_name | cut -c2-`   
@@ -140,11 +106,16 @@ fi
 cd $XIOS_DIR
 echo $PWD
 echo "Checking out xios repository"
-svn co http://forge.ipsl.jussieu.fr/ioserver/svn/XIOS/branchs/xios-2.5@1627 xios
+svn co http://forge.ipsl.jussieu.fr/ioserver/svn/XIOS/branchs/xios-2.5@1964 xios
 cd xios
 cp $REPO_DIR/arch/xios/* ./arch
 echo "Compiling xios"
-./make_xios --full --prod --arch archer --netcdf_lib netcdf4_par --job 4
+./make_xios --full --prod --arch archer2 --netcdf_lib netcdf4_par --job 4
+# Dirty fix here as xios has to unpack before we can edit
+sed -e "s/FC_MODSEARCH => '',  /FC_MODSEARCH => '-J',/" tools/FCM/lib/Fcm/Config.pm > tmp_file
+mv tmp_file tools/FCM/lib/Fcm/Config.pm
+# Try once more
+./make_xios --full --prod --arch archer2 --netcdf_lib netcdf4_par --job 4
 
 # Let's update the path to xios
 export XIOS_DIR=$XIOS_DIR/xios
@@ -152,8 +123,8 @@ export XIOS_DIR=$XIOS_DIR/xios
 cd $WORK_DIR/nemo
 cp $REPO_DIR/arch/nemo/* ./arch
 # Dirty fix to hard wire path otherwise user will have to set XIOS_DIR in every new shell session
-sed "s?XXX_XIOS_DIR_XXX?$XIOS_DIR?" ./arch/arch-archer.fcm > tmp_arch
-mv tmp_arch ./arch/arch-archer.fcm
+sed "s?XXX_XIOS_DIR_XXX?$XIOS_DIR?" ./arch/arch-archer2.fcm > tmp_arch
+mv tmp_arch ./arch/arch-archer2.fcm
 
 echo 'eORCA1 OCE ICE' >> $WORK_DIR/nemo/cfgs/work_cfgs.txt
 
@@ -189,10 +160,14 @@ cp $REPO_DIR/EXP00/* $CONFIG_DIR/EXP00/
 cp -r $REPO_DIR/MY_SRC $CONFIG_DIR
 cp $REPO_DIR/cpp_eORCA1.fcm $CONFIG_DIR
 
+cd $WORK_DIR/nemo/ext/FCM/lib/Fcm
+sed -e "s/FC_MODSEARCH => '',  /FC_MODSEARCH => '-J',/" Config.pm > tmp_file
+mv tmp_file Config.pm
+
 cd $WORK_DIR/nemo
 
 echo "Compiling nemo eORCA1 Config"
-./makenemo -m archer -r eORCA1 -j 8
+./makenemo -m archer2 -r eORCA1 -j 8
 
 echo
 echo "  Auto-Config: eORCA1"
@@ -200,8 +175,8 @@ echo "  *****************************"
 echo
 echo "  To run the eORCA1 Configuration:"
 echo
-echo "  - update the runscript.pbs accordingly "
+echo "  - update the runscript accordingly "
 echo "      (project code, nodes, modules, etc)"
 echo
-echo "  - submit via the qsub command"
+echo "  - submit via the slurm command"
 echo    
