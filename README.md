@@ -9,7 +9,7 @@ Configuration files for eORCA1
 
 ```
 git clone git@github.com:NOC-MSM/eORCA1.git
-./eORCA1/scripts/setup/eORCA1_setup_archer -w $PWD/test -x $PWD/test -s $PWD/eORCA1
+./eORCA1/scripts/setup/eORCA1_setup -w $PWD/test -x $PWD/test -s $PWD/eORCA1
 cd test/nemo/cfgs/eORCA1/EXP00
 ```
 Edit the project code in  `runscript.slurm` then:
