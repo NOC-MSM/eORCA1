@@ -5,11 +5,11 @@
 !-----------------------------------------------------------------------
 &namrun        !   parameters of the run
 !-----------------------------------------------------------------------
-       cn_exp='se-orca025'
+       cn_exp='eORCA1'
        nn_date0=19580101   !  date at nit_0000 (format yyyymmdd) used if ln_rstart=F or (ln_rstart=T and nn_rstctl=0 or 1)
        nn_it000=1
-       nn_itend=480
-       nn_stock=480
+       nn_itend=992
+       nn_stock=992
        !nn_itend=96
        !nn_stock=96
 /
@@ -29,14 +29,14 @@
 !-----------------------------------------------------------------------
    ln_read_cfg = .true.      !  (=T) read the domain configuration file
       !                      !  (=F) user defined configuration           (F => create/check namusr_def)
-      cn_domcfg = "./INPUTS/eORCA025_zps_domcfg"  ! domain configuration filename
+      cn_domcfg = "./INPUTS/eORCA_R1_zps_domcfg"  ! domain configuration filename
 /
 !-----------------------------------------------------------------------
 &namdom        !   space and time domain (bathymetry, mesh, timestep)
 !-----------------------------------------------------------------------
    ln_meshmask = .false.
                            !
-   rn_rdt      = 900.      !  time step for the dynamics (and tracer if nn_acc=0)
+   rn_rdt      = 2700.      !  time step for the dynamics (and tracer if nn_acc=0)
    rn_atfp     =    0.1    !  asselin time filter parameter
 /
 !-----------------------------------------------------------------------
@@ -55,15 +55,16 @@
 !-----------------------------------------------------------------------
 &namtsd    !   data : Temperature  & Salinity
 !-----------------------------------------------------------------------
-!-----------------------------------------------------------------------
-!          !  file name                            ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
-!          !                                       !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
-   sn_tem = 'conservative_temperature_WOA13_decav_Reg1L75_clim' , -1,  'votemper',  .false.       , .true., 'yearly'   , 'weights_3D_WOA13d1_2_eorca025_bilinear.nc', ' ' ,''  !
-   sn_sal = 'absolute_salinity_WOA13_decav_Reg1L75_clim'        , -1,  'vosaline',  .false.       , .true., 'yearly'   , 'weights_3D_WOA13d1_2_eorca025_bilinear.nc', ' ' ,''  !
-   !
-   cn_dir        = './INPUTS/'     !  root directory for the location of the runoff files
-   ln_tsd_init   = .true.   !  Initialisation of ocean T & S with T &S input data (T) or not (F)
-   ln_tsd_dmp = .false.     !  damping of ocean T & S toward T &S input data (T) or not (F)
+   !                       ! =T  read T-S fields for:
+   ln_tsd_init = .true.         !  ocean initialisation
+   ln_tsd_dmp  = .false.         !  T-S restoring   (see namtra_dmp)
+   
+   cn_dir      = './INPUTS/'      !  root directory for the T-S data location
+   !___________!_________________________!___________________!___________!_____________!________!___________!__________________!__________!_______________!
+   !           !  file name              ! frequency (hours) ! variable  ! time interp.!  clim  ! 'yearly'/ ! weights filename ! rotation ! land/sea mask !
+   !           !                         !  (if <0  months)  !   name    !   (logical) !  (T/F) ! 'monthly' !                  ! pairing  !    filename   !
+   sn_tem  = 'conservative_temperature_WOA13_decav_Reg1L75_clim', -1 ,'votemper' , .true. , .true. , 'yearly' , 'weights_3D_WOA13d1_2_eorca1_bilinear.nc'  ,   ''    ,    ''
+   sn_sal  = 'absolute_salinity_WOA13_decav_Reg1L75_clim'       , -1 ,'vosaline' , .true. , .true. , 'yearly' , 'weights_3D_WOA13d1_2_eorca1_bilinear.nc'  ,   ''    ,    ''
 /
 !!======================================================================
 !!            ***  Surface Boundary Condition namelists  ***
@@ -83,21 +84,31 @@
 !!   namsbc_ssr      sea surface restoring term (for T and/or S)
 !!   namsbc_alb      albedo parameters
 !!======================================================================
-!
 !-----------------------------------------------------------------------
 &namsbc        !   Surface Boundary Condition (surface module)
 !-----------------------------------------------------------------------
-   nn_fsbc     = 2         !  frequency of surface boundary condition computation
+   nn_fsbc     = 1         !  frequency of surface boundary condition computation
                            !     (also = the frequency of sea-ice model call)
-   ln_ice_embd = .false.
-   ln_dm2dc    = .true.    !  daily mean to diurnal cycle on short wave
-   ln_traqsr   = .true.    !  Light penetration in the ocean            (T => fill namtra_qsr)
-   ln_rnf      = .true.    !  runoffs                                   (T   => fill namsbc_rnf)
-   nn_ice      = 2
-   ln_ssr      = .true.    !  Sea Surface Restoring on T and/or S       (T => fill namsbc_ssr)
    ln_blk      = .true.    !
+   nn_ice      = 2
+   ln_ice_embd = .false.
+   ln_traqsr   = .true.    !  Light penetration in the ocean            (T => fill namtra_qsr)
+   ln_dm2dc    = .true.    !  daily mean to diurnal cycle on short wave
+   ln_ssr      = .true.    !  Sea Surface Restoring on T and/or S       (T => fill namsbc_ssr)
    nn_fwb      = 2         !  FreshWater Budget: =0 unchecked
-                           !     =1 global mean of e-p-r set to zero at each time step
+   ln_rnf      = .true.    !  runoffs                                   (T   => fill namsbc_rnf)
+   ln_apr_dyn  = .false.   !  Patm gradient added in ocean & ice Eqs.   (T => fill namsbc_apr )
+   ln_isf      = .true.    !  ice shelf                                 (T   => fill namsbc_isf & namsbc_iscpl)
+   ln_wave     = .false.    !  Activate coupling with wave  (T => fill namsbc_wave)
+   ln_cdgw     = .false.   !  Neutral drag coefficient read from wave model (T => ln_wave=.true. & fill namsbc_wave)
+   ln_sdw      = .true.    !  Read 2D Surf Stokes Drift & Computation of 3D stokes drift (T => ln_wave=.true. & fill namsbc_wave) 
+   nn_sdrift   =  1        !  Parameterization for the calculation of 3D-Stokes drift from the surface Stokes drift
+      !                    !   = 0 Breivik 2015 parameterization: v_z=v_0*[exp(2*k*z)/(1-8*k*z)]
+      !                    !   = 1 Phillips:                      v_z=v_o*[exp(2*k*z)-beta*sqrt(-2*k*pi*z)*erfc(sqrt(-2*k*z))]
+      !                    !   = 2 Phillips as (1) but using the wave frequency from a wave model
+   ln_tauwoc   = .false.   !  Activate ocean stress modified by external wave induced stress (T => ln_wave=.true. & fill namsbc_wave)
+   ln_tauw     = .false.   !  Activate ocean stress components from wave model
+   ln_stcor    = .true.    !  Activate Stokes Coriolis term (T => ln_wave=.true. & ln_sdw=.true. & fill namsbc_wave)
 /
 !-----------------------------------------------------------------------
 &namsbc_ana    !   analytical surface boundary condition
@@ -114,23 +125,27 @@
 !-----------------------------------------------------------------------
 &namsbc_blk    !   namsbc_blk  generic Bulk formula          (ln_blk =T)
 !-----------------------------------------------------------------------
-   ln_NCAR      = .true.    ! "NCAR"      algorithm   (Large and Yeager 2008)
-   cn_dir      = './INPUTS/'      !  root directory for the location of the bulk files
-   rn_zqt      = 2.        !  Air temperature and humidity reference height (m)
-   rn_zu       = 10.        !  Wind vector reference height (m)
-                           !  in the calculation of the wind stress (0.=absolute winds or 1.=relative winds)
-!
-!              !   file name  ! frequency (hours) ! variable   ! time interpol. !  clim   ! 'yearly'/ ! weights              ! rotation !
-!              !              !  (if <0  months)  !   name     !    (logical)   !  (T/F)  ! 'monthly' ! filename             ! pairing  !
-   sn_wndi =    'drowned_u10_DFS5.2'  ,     3     ,  'u10'     ,    .true.      , .false. ,  'yearly'  ,  'weights_bicubic_e025' ,  'U1'
-   sn_wndj =    'drowned_v10_DFS5.2'  ,     3     ,  'v10'     ,    .true.      , .false. ,  'yearly'  ,  'weights_bicubic_e025' ,  'V1'
-   sn_humi =    'drowned_q2_DFS5.2'    ,    3     ,  'q2'      ,    .true.      , .false. ,  'yearly'  ,  'weights_bilinear_e025' ,   ''
-   sn_qsr  =    'drowned_radsw_DFS5.2' ,    24    ,  'radsw'   ,    .false.     , .false. ,  'yearly'  ,  'weights_bilinear_e025' ,   ''
-   sn_qlw  =    'drowned_radlw_DFS5.2' ,    24    ,  'radlw'   ,    .false.     , .false. ,  'yearly'  ,  'weights_bilinear_e025' ,   ''
-   sn_tair =    'drowned_t2_DFS5.2'    ,    3     ,  't2'      ,    .true.      , .false. ,  'yearly'  ,  'weights_bilinear_e025' ,   ''
-   sn_prec =    'drowned_precip_DFS5.2' ,   24     ,  'precip'  ,    .true.      , .false. ,  'yearly'  ,  'weights_bilinear_e025' ,  ''
-   sn_snow =    'drowned_snow_DFS5.2'  ,    24     ,  'snow'    ,    .true.      , .false. ,  'yearly'  ,  'weights_bilinear_e025' ,  ''
-   sn_slp  =    'fake_slp_y1958.nc'    ,   -12     ,  'slp'     ,    .false.     , .true.  ,  'yearly'  ,  'weights_Goutorbe1_2_eorca025_bilinear' ,  ''
+   !                    !  bulk algorithm :
+   ln_NCAR     = .true.   ! "NCAR"      algorithm   (Large and Yeager 2008)
+   ln_COARE_3p0 = .false.   ! "COARE 3.0" algorithm   (Fairall et al. 2003)
+   ln_COARE_3p5 = .false.   ! "COARE 3.5" algorithm   (Edson et al. 2013)
+   ln_ECMWF    = .false.      ! "ECMWF"     algorithm   (IFS cycle 31)
+      !
+      rn_zqt      = 10.       !  Air temperature & humidity reference height (m)
+      rn_zu       = 10.       !  Wind vector reference height (m)
+
+   cn_dir      = './INPUTS/'      !  root directory for the location of the flux files
+!              !  file name                   ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights                              ! rotation ! land/sea mask !
+!              !                              !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename                             ! pairing  ! filename      !
+   sn_wndi     = 'u_10_core_oonly'       ,         6         , 'U_10_MOD',   .true.     ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bicubic.nc'  , 'U1'    , ''
+   sn_wndj     = 'v_10_core_oonly'       ,         6         , 'V_10_MOD',   .true.     ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bicubic.nc'  , 'V1'    , ''
+   sn_qsr      = 'rad_core_oonly'        ,        24         , 'SWDN_MOD',   .false.    ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
+   sn_qlw      = 'rad_core_oonly'        ,        24         , 'LWDN_MOD',   .true.     ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
+   sn_tair     = 't_10_core_oonly'       ,         6         , 'T_10_MOD',   .false.    ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
+   sn_humi     = 'q_10_core_oonly'       ,         6         , 'Q_10_MOD',   .false.    ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
+   sn_prec     = 'tprecip_core_oonly'    ,        -1         , 'TPRECIP' ,   .true.     ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
+   sn_snow     = 'tprecip_core_oonly'    ,        -1         , 'SNOW'    ,   .true.     ,  .false. , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
+   sn_slp      = 'slp_core_oonly'        ,         6         , 'SLP'     ,   .true.     , .false.  , 'yearly'  , 'weights_coreII_2_eorca1_bilinear.nc' , ''      , ''
 /
 !-----------------------------------------------------------------------
 &namsbc_cpl    !   coupled ocean/atmosphere model                       ("key_oasis3")
@@ -146,13 +161,12 @@
 !-----------------------------------------------------------------------
 !              !  file name  ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
 !              !             !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
-   sn_chl      ='merged_ESACCI_BIOMER4V1R1_CHL_REG05', -1 , 'CHLA' , .true. , .true. , 'yearly'  , 'weights_reg05_2_eorca025_bilinear.nc' , '', ''
-
-   cn_dir      = './INPUTS/'      !  root directory for the location of the runoff files
-   ln_qsr_rgb  = .true.    !  RGB (Red-Green-Blue) light penetration
-   ln_qsr_2bd  = .false.   !  2 bands              light penetration
-   ln_qsr_bio  = .false.   !  bio-model light penetration
-   nn_chldta   =      1    !  RGB : 2D Chl data (=1) or cst value (=0)
+   sn_chl      ='merged_ESACCI_BIOMER4V1R1_CHL_REG05',  -1  , 'CHLA' , .true. , .true. , 'yearly' , 'weights_reg05_2_eorca1_bilinear.nc' , '' , ''
+   cn_dir      = './INPUTS/'      !  root directory for the location of the flux files
+   ln_qsr_rgb  = .false.   !  RGB (Red-Green-Blue) light penetration
+   ln_qsr_2bd  = .true.  !  2 bands              light penetration
+   ln_qsr_bio  = .false.  !  bio-model light penetration
+   nn_chldta   =      1    !  RGB : Chl data (=1) or cst value (=0)
    rn_abs      =   0.58    !  RGB & 2 bands: fraction of light (rn_si1)
    rn_si0      =   0.35    !  RGB & 2 bands: shortess depth of extinction
    rn_si1      =   23.0    !  2 bands: longest depth of extinction
@@ -160,30 +174,33 @@
 !-----------------------------------------------------------------------
 &namsbc_rnf    !   runoffs namelist surface boundary condition
 !-----------------------------------------------------------------------
-!              !  file name           ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
-!              !                      !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
-   sn_rnf      = 'eORCA_R025_runoff_v1.0'            ,        -1         , 'sornficb',   .true.     , .true. , 'yearly'  , ''       , ''  , ''
-   sn_cnf      = 'eORCA_R025_runoff_v1.0'            ,         0         , 'socoefr' ,   .false.    , .true. , 'yearly'  , ''       , ''  , ''
-   sn_s_rnf    = 'eORCA_R025_runoff_v1.0'            ,        24         , 'rosaline',   .true.     , .true. , 'yearly'  , ''       , ''  , ''
-   sn_t_rnf    = 'eORCA_R025_runoff_v1.0'            ,        24         , 'rotemper',   .true.     , .true. , 'yearly'  , ''       , ''  , ''
-   sn_dep_rnf  = 'eORCA_R025_runoff_v1.0'            ,         0         , 'rodepth' ,   .false.    , .true. , 'yearly'  , ''       , ''  , ''
+!              !  file name                                       ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask!
+!              !                                                  !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename     !
+   sn_rnf      = 'runoff-icb_DaiTrenberth_Depoorter_eORCA1_JD.nc',        -1         , 'sorunoff',   .true.     , .true. , 'yearly'  , ''       , ''       , ''
+   sn_cnf      = 'runoff-icb_DaiTrenberth_Depoorter_eORCA1_JD.nc',         0         , 'socoeff' ,   .false.    , .true. , 'yearly'  , ''       , ''       , ''
 
    cn_dir       = './INPUTS/'      !  root directory for the location of the runoff files
    ln_rnf_mouth = .false. !!true. !rbb.false.   !  specific treatment at rivers mouths
-   rn_hrnf      =   10.     !  depth over which enhanced vertical mixing is used
-   rn_avt_rnf   =   2.e-3   !  value of the additional vertical mixing coef. [m2/s]
-   rn_rfact     =   1.e0    !  multiplicative factor for runoff
    ln_rnf_depth = .false.   !  read in depth information for runoff
    ln_rnf_tem   = .false.   !  read in temperature information for runoff
    ln_rnf_sal   = .false.   !  read in salinity information for runoff
-   ln_rnf_depth_ini = .true.  ! compute depth at initialisation from runoff file
-   rn_rnf_max   = 0.027394  !  max value of the runoff climatologie over global domain ( ln_rnf_depth_ini = .true )
+   ln_rnf_depth_ini = .false.  ! compute depth at initialisation from runoff file
+   rn_rnf_max   = 0.05  !  max value of the runoff climatologie over global domain ( ln_rnf_depth_ini = .true )
    rn_dep_max   = 150.      !  depth over which runoffs is spread ( ln_rnf_depth_ini = .true )
    nn_rnf_depth_file = 0    !  create (=1) a runoff depth file or not (=0)
 /
 !-----------------------------------------------------------------------
 &namisf    !  Top boundary layer (ISF)
 !-----------------------------------------------------------------------
+!              ! file name                                          ! frequency (hours) ! variable ! time interp.!  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask!
+!              !                                                    !  (if <0  months)  !   name   !  (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename     !
+   sn_rnfisf     = 'runoff-icb_DaiTrenberth_Depoorter_eORCA1_JD.nc' ,   -12             ,'sornfisf'     , .false. , .true. , 'yearly'  ,  ''     ,   ''     ,  ''
+   sn_depmax_isf = 'runoff-icb_DaiTrenberth_Depoorter_eORCA1_JD.nc' ,   -12             ,'sodepmax_isf' , .false. , .true. , 'yearly'  ,  ''     ,   ''     ,  ''
+   sn_depmin_isf = 'runoff-icb_DaiTrenberth_Depoorter_eORCA1_JD.nc' ,   -12             ,'sodepmin_isf' , .false. , .true. , 'yearly'  ,  ''     ,   ''     ,  ''
+   nn_isf      = 3         !  ice shelf melting/freezing
+                           !  1 = presence of ISF    2 = bg03 parametrisation 
+                           !  3 = rnf file for isf   4 = ISF fwf specified
+                           !  option 1 and 4 need ln_isfcav = .true. (domzgr)
 /
 !-----------------------------------------------------------------------
 &namsbc_apr    !   Atmospheric pressure used as ocean forcing or in bulk
@@ -196,11 +213,9 @@
 !-----------------------------------------------------------------------
 !              !  file name  ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
 !              !             !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
-   sn_sst      = 'sst_data'  ,                        24  ,  'sst'     ,    .false.   , .false., 'yearly'  , ''       , ''       , ''
-   sn_sss      = 'sss_absolute_salinity_WOA13_decav_Reg1L75_clim'  , -1  , 'sosaline'     ,    .true.    , .true. , 'yearly'  , 'weights_WOA13d1_2_eorca025_bilinear.nc'       , ''       , ''
+   sn_sss      = 'sss_absolute_salinity_WOA13_decav_Reg1L75_clim'  , -1  , 'sosaline'     ,    .true.    , .true. , 'yearly'  , 'weights_WOA13d1_2_eorca1_bilinear.nc'       , ''       , ''
 
    cn_dir      = './INPUTS/'      !  root directory for the location of the runoff files
-   nn_sstr     =     0     !  add a retroaction term in the surface heat       flux (=1) or not (=0)
    nn_sssr     =     2     !  add a damping     term in the surface freshwater flux (=2)
                            !  or to SSS only (=1) or no damping term (=0)
    rn_dqdt     =   -40.    !  magnitude of the retroaction on temperature   [W/m2/K]
@@ -285,7 +300,7 @@
 !              !  file name  ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
 !              !             !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
 !              !                 !  (if <0  months)  !   name     !   (logical)    !  (T/F ) ! 'monthly' ! filename ! pairing  ! filename      !
-   sn_qgh      ='Goutorbe_ghflux.nc',  -12.  , 'gh_flux'    ,   .false.     , .true. , 'yearly'  , 'weights_Goutorbe1_2_eorca025_bilinear.nc'       , ''       , ''
+   sn_qgh      ='Goutorbe_ghflux.nc',  -12.  , 'gh_flux'    ,   .false.     , .true. , 'yearly'  , 'weights_Goutorbe1_2_eorca1_bilinear.nc'       , ''       , ''
    !
    cn_dir      = './INPUTS/'      !  root directory for the location of the runoff files
    ln_trabbc   = .true.    !  Apply a geothermal heating at the ocean bottom
@@ -330,15 +345,9 @@
 !-----------------------------------------------------------------------
 &namtra_mle !   mixed layer eddy parametrisation (Fox-Kemper param)
 !-----------------------------------------------------------------------
-   ln_mle    = .true.      ! (T) use the Mixed Layer Eddy (MLE) parameterisation
-   rn_ce     = 0.3        ! magnitude of the MLE (typical value: 0.06 to 0.08)
-   nn_mle    = 1           ! MLE type: =0 standard Fox-Kemper ; =1 new formulation
-   rn_lf     = 5.e+3       ! typical scale of mixed layer front (meters)                      (case rn_mle=0)
-   rn_time   = 172800.     ! time scale for mixing momentum across the mixed layer (seconds)  (case rn_mle=0)
-   rn_lat    = 20.         ! reference latitude (degrees) of MLE coef.                        (case rn_mle=1)
-   nn_mld_uv = 0           ! space interpolation of MLD at u- & v-pts (0=min,1=averaged,2=max)
-   nn_conv   = 0           ! =1 no MLE in case of convection ; =0 always MLE
-   rn_rho_c_mle  = 0.01    ! delta rho criterion used to calculate MLD for FK
+   ln_mle      = .true.   ! (T) use the Mixed Layer Eddy (MLE) parameterisation
+   rn_ce       = 0.04      ! magnitude of the MLE (typical value: 0.06 to 0.08)
+
 /
 !----------------------------------------------------------------------------------
 &namtra_ldf    !   lateral diffusion scheme for tracers
@@ -401,10 +410,10 @@
 !-----------------------------------------------------------------------
 &namdyn_adv    !   formulation of the momentum advection
 !-----------------------------------------------------------------------
-   ln_dynadv_vec = .false.  !  vector form (T) or flux form (F)
+   ln_dynadv_vec = .true.  !  vector form (T) or flux form (F)
    nn_dynkeg     = 1       ! scheme for grad(KE): =0   C2  ;  =1   Hollingsworth correction
    ln_dynadv_cen2= .false. !  flux form - 2nd order centered scheme
-   ln_dynadv_ubs = .true. !  flux form - 3rd order UBS      scheme
+   ln_dynadv_ubs = .false. !  flux form - 3rd order UBS      scheme
 /
 !-----------------------------------------------------------------------
 &nam_vvl    !   vertical coordinate options
@@ -447,14 +456,14 @@
 &namdyn_ldf    !   lateral diffusion on momentum
 !-----------------------------------------------------------------------
    !                       !  Type of the operator :
-   ln_dynldf_lap    =  .false.  !  laplacian operator
-   ln_dynldf_blp    =  .true.   !  bilaplacian operator
+   ln_dynldf_lap    =  .true.  !  laplacian operator
+   ln_dynldf_blp    =  .false.   !  bilaplacian operator
    !                       !  Direction of action  :
    ln_dynldf_lev    =  .false.  !  iso-level
-   ln_dynldf_hor    =  .true.   !  horizontal (geopotential)            (require "key_ldfslp" in s-coord.)
-   ln_dynldf_iso    =  .false.  !  iso-neutral                          (require "key_ldfslp")
+   ln_dynldf_hor    =  .false.   !  horizontal (geopotential)            (require "key_ldfslp" in s-coord.)
+   ln_dynldf_iso    =  .true.  !  iso-neutral                          (require "key_ldfslp")
    !                       !  Coefficient
-   nn_ahm_ijk_t  = 20          !  space/time variation of eddy coefficient :
+   nn_ahm_ijk_t  = 30          !  space/time variation of eddy coefficient :
       !                             !  =-30  read in eddy_viscosity_3D.nc file
       !                             !  =-20  read in eddy_viscosity_2D.nc file
       !                             !  =  0  constant
@@ -557,14 +566,15 @@
 &nammpp        !   Massively Parallel Processing                        ("key_mpp_mpi)
 !-----------------------------------------------------------------------
    ln_nnogather=  .true.   !
-    jpni        = 32   ! jpnij = 251
-    jpnj        = 34   ! jpnij = 251
-    !jpni        = 14   ! jpnij = 142
-    !jpnj        = 13   ! jpnij = 142
+    jpni        = 9
+    jpnj        = 5
 /
 !-----------------------------------------------------------------------
 &namctl        !   Control prints & Benchmark
 !-----------------------------------------------------------------------
+   ln_ctl = .FALSE.                 ! Toggle all report printing on/off (T/F); Ignored if sn_cfctl%l_config is T
+     sn_cfctl%l_config = .TRUE.     ! IF .true. then control which reports are written with the following
+       sn_cfctl%l_runstat = .TRUE. ! switches and which areas produce reports with the proc integer settings.
    ln_timing   = .true.          !  timing by routine write out in timing.output file
 /
 
