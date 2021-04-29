@@ -26,4 +26,4 @@ _this is automatically transferred when the setup script is executed_
 
 ### Important:
 
-Nothing as of yet!
+NEMO v4.0.4 has a few ICE bugs in it. The repository's intended use is purely for testing at present. If you are wanting to pickup the bugfixes, either modify the setupscript to set `NEMO_VER=4.0.6` (namelists will need to be updated accordingly) or add a ticket to [Issues](https://github.com/NOC-MSM/eORCA1/issues) and I'll try an update ASAP.
