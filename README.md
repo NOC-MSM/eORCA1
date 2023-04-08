@@ -20,7 +20,7 @@ This will produce a 5 day mean output from the beginning of 2000, for 1 month. T
 
 ### Forcing data:
 
-[eORCA1](http://gws-access.ceda.ac.uk/public/jmmp_collab/eORCA1)
+[eORCA1](http://gws-access.ceda.ac.uk/public/jmmp/eORCA1)
 
 _this is automatically transferred when the setup script is executed_
 
